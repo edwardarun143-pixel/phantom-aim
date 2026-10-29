@@ -44,6 +44,10 @@ class OverlayService : Service() {
                     or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT
         )
+        
+        // This is the new line that fixes touches
+        lp.flags = lp.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+
         wm.addView(root, lp)
         running = true
         animateDetection()
