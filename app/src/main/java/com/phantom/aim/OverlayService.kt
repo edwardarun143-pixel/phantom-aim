@@ -2,6 +2,7 @@ package com.phantom.aim
 
 import android.app.*
 import android.content.Intent
+import android.graphics.Color
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
@@ -17,6 +18,7 @@ class OverlayService : Service() {
     private lateinit var detBox: View
     private lateinit var crosshair: View
     private lateinit var hudFps: TextView
+    private lateinit var stopBtn: TextView
     private var running = false
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -36,6 +38,7 @@ class OverlayService : Service() {
         else
             WindowManager.LayoutParams.TYPE_PHONE
 
+        // Main Overlay (Touchable pass-through)
         val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -44,11 +47,28 @@ class OverlayService : Service() {
                     or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT
         )
-        
-        // This is the new line that fixes touches
         lp.flags = lp.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
 
         wm.addView(root, lp)
+
+        // Floating STOP Button
+        stopBtn = TextView(this).apply {
+            text = "X"
+            setTextColor(Color.WHITE)
+            textSize = 20f
+            gravity = Gravity.CENTER
+            setBackgroundColor(Color.RED)
+            setOnClickListener { stopSelf() }
+        }
+        val lpBtn = WindowManager.LayoutParams(
+            120, 120, type, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.END
+            x = 30
+            y = 150
+        }
+        wm.addView(stopBtn, lpBtn)
+
         running = true
         animateDetection()
     }
@@ -85,27 +105,21 @@ class OverlayService : Service() {
             val nc = NotificationChannel(ch, "Phantom Aim", NotificationManager.IMPORTANCE_LOW)
             getSystemService(NotificationManager::class.java).createNotificationChannel(nc)
         }
-        val stop = PendingIntent.getService(
-            this, 0, Intent(this, OverlayService::class.java).apply { action = "stop" },
-            PendingIntent.FLAG_IMMUTABLE
-        )
         return NotificationCompat.Builder(this, ch)
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setContentTitle("Phantom Aim Active")
-            .setContentText("Overlay running · tap STOP to disable")
-            .addAction(0, "STOP", stop)
             .setOngoing(true)
             .build()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == "stop") stopSelf()
         return START_NOT_STICKY
     }
 
     override fun onDestroy() {
         running = false
         try { wm.removeView(root) } catch (_: Exception) {}
+        try { wm.removeView(stopBtn) } catch (_: Exception) {}
         super.onDestroy()
     }
 }
